@@ -10,8 +10,10 @@ https://github.com/davisagli/SublimePythonCoverage.git
 Installation
 ------------
 
+```
 cd ~/.config/sublime-text-3/Packages
 git clone https://github.com/zehome/SublimePythonCoverage.git
+```
 
 Usage
 -----
