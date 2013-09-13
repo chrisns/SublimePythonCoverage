@@ -8,7 +8,7 @@ Port from Sublime Text 2 plugin
 https://github.com/davisagli/SublimePythonCoverage.git
 
 Installation
-------------
+============
 
 ```
 cd ~/.config/sublime-text-3/Packages
@@ -16,10 +16,10 @@ git clone https://github.com/zehome/SublimePythonCoverage.git
 ```
 
 Usage
------
+=====
 
 Highlighting lines missing coverage
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------
 
 When you open a .py file,
 SublimePythonCoverage tries to find coverage information
@@ -36,9 +36,9 @@ by running the ``show_python_coverage`` command,
 bound to super+shift+c by default.
 
 Running tests with coverage
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------
 
 Django
-------
+============
 
 coverage run --source='' manage.py test
