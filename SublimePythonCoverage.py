@@ -1,32 +1,33 @@
 # bootstrap
 import os
+import sys
 plugin_path = os.path.dirname(__file__)
+sys.path += [plugin_path, ]
 if not os.path.exists(os.path.join(plugin_path, 'coverage')):
     # Fetch coverage.py
-    print 'SublimePythonCoverage installing coverage.py.'
+    print('SublimePythonCoverage installing coverage.py.')
 
-    from StringIO import StringIO
+    import io
     import tarfile
-    import urllib
+    import urllib.request, urllib.parse, urllib.error
     from hashlib import md5
 
-    SOURCE = 'http://pypi.python.org/packages/source/c/coverage/coverage-3.6.tar.gz'
+    SOURCE = 'http://daboog.zehome.com/~ed/coverage-3.6.tar.gz'
     MD5SUM = '67d4e393f4c6a5ffc18605409d2aa1ac'
 
-    payload = urllib.urlopen(SOURCE).read()
+    payload = urllib.request.urlopen(SOURCE).read()
     if md5(payload).hexdigest() != MD5SUM:
         raise ImportError('Invalid checksum.')
 
-    tar = tarfile.open(mode='r:gz', fileobj=StringIO(payload))
+    tar = tarfile.open(mode='r:gz', fileobj=io.BytesIO(payload))
     for m in tar.getmembers():
         if not m.name.startswith('coverage-3.6/coverage/'):
             continue
         m.name = '/'.join(m.name.split('/')[2:])
         tar.extract(m, os.path.join(plugin_path, 'coverage'))
 
-    print 'SublimePythonCoverage successfully installed coverage.py.'
+    print('SublimePythonCoverage successfully installed coverage.py.')
 # end bootstrap
-
 
 import sublime
 import sublime_plugin
@@ -34,9 +35,8 @@ from coverage import coverage
 from coverage.files import FnmatchMatcher
 PLUGIN_FILE = os.path.abspath(__file__)
 
-
 def find(base, rel, access=os.R_OK):
-    if not isinstance(rel, basestring):
+    if not isinstance(rel, str):
         rel = os.path.join(*rel)
     while 1:
         path = os.path.join(base, rel)
@@ -90,7 +90,7 @@ class ShowPythonCoverageCommand(sublime_plugin.TextCommand):
 
         cov_file = find(fname, '.coverage')
         if not cov_file:
-            print 'Could not find .coverage file.'
+            print('Could not find .coverage file.')
             return
 
         config_file = os.path.join(os.path.dirname(cov_file), '.coveragerc')
@@ -115,60 +115,3 @@ class ShowPythonCoverageCommand(sublime_plugin.TextCommand):
             view.add_regions('SublimePythonCoverage', outlines,
                              'coverage.missing', 'bookmark', flags)
 
-# manually import the module containing ST2's default build command,
-# since it's in a module whose name is a Python keyword :-s
-ExecCommand = __import__('exec').ExecCommand
-
-
-class TestExecCommand(ExecCommand):
-    """An generic extension of the default build system which shows coverage at the end."""
-
-    runner = None
-
-    def cmd(self, runner, testpath):
-        NotImplemented
-
-    def run(self, **kw):
-        if 'cmd' not in kw:
-            fname = self.window.active_view().file_name()
-
-            # look for a virtualenv with nosetests, py.test etc
-            runner = find_cmd(fname, self.runner)
-            if runner is None:
-                # no virtualenv; maybe there's a global one
-                runner = self.runner
-
-            testpath = find_tests(fname)
-            if os.path.isdir(testpath):
-                kw['working_dir'] = testpath
-            else:
-                kw['working_dir'] = os.path.dirname(testpath)
-
-            kw['cmd'] = self.cmd(runner, testpath)
-
-        super(TestExecCommand, self).run(**kw)
-
-    def finish(self, proc):
-        super(TestExecCommand, self).finish(proc)
-        for view in self.window.views():
-            view.run_command('show_python_coverage')
-
-
-class NoseExecCommand(TestExecCommand):
-    """An extension of the default build system using the Python Nose test
-       runner to generate coverage information."""
-
-    runner = 'nosetests'
-
-    def cmd(self, runner, testpath):
-        return [runner, '--with-coverage', testpath]
-
-
-class PytestExecCommand(TestExecCommand):
-    """An extension of the default build system using the py.test test
-       runner to generate coverage information."""
-
-    runner = 'py.test'
-
-    def cmd(self, runner, testpath):
-        return [runner]
