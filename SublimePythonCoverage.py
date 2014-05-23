@@ -9,7 +9,9 @@ if not os.path.exists(os.path.join(plugin_path, 'coverage')):
 
     import io
     import tarfile
-    import urllib.request, urllib.parse, urllib.error
+    import urllib.request
+    import urllib.parse
+    import urllib.error
     from hashlib import md5
 
     SOURCE = 'http://daboog.zehome.com/~ed/coverage-3.6.tar.gz'
@@ -34,6 +36,7 @@ import sublime_plugin
 from coverage import coverage
 from coverage.files import FnmatchMatcher
 PLUGIN_FILE = os.path.abspath(__file__)
+
 
 def find(base, rel, access=os.R_OK):
     if not isinstance(rel, str):
@@ -69,6 +72,7 @@ def find_tests(fname):
 
 
 class SublimePythonCoverageListener(sublime_plugin.EventListener):
+
     """Event listener to highlight uncovered lines when a Python file is loaded."""
 
     def on_load(self, view):
@@ -77,8 +81,53 @@ class SublimePythonCoverageListener(sublime_plugin.EventListener):
 
         view.run_command('show_python_coverage')
 
+    def on_pre_save(self, view):
+        fname = view.file_name()
+        if not ".py" in fname:
+            return
+        cov_file = find(fname, '.coverage')
+        try:
+            os.remove(cov_file)
+        except OSError:
+            pass
+        except TypeError:
+            pass
+
+    def on_post_save_async(self, view):
+        fname = view.file_name()
+        if not ".py" in fname:
+            return
+        grunt_file = find(fname, 'Gruntfile.js')
+        if not grunt_file:
+            return
+        import time
+        retries = 0
+        max_retries = 60
+        print("waiting for coverage")
+        while retries < max_retries:
+            try:
+                cov_file = find(fname, '.coverage')
+                if not cov_file:
+                    raise Exception(
+                        'Coverage file doesn\'t exist on attempt: ' +
+                        str(retries))
+                print("Running show_python_coverage")
+                view.run_command('show_python_coverage')
+                return True
+            except Exception as ex:
+                print(ex)
+                time.sleep(0.5)
+
+            retries += 1
+        if retries < max_retries:
+            print("Running show_python_coverage")
+            view.run_command('show_python_coverage')
+        else:
+            print("Timeout waiting for coverage report")
+
 
 class ShowPythonCoverageCommand(sublime_plugin.TextCommand):
+
     """Highlight uncovered lines in the current file based on a previous coverage run."""
 
     def run(self, edit):
@@ -90,15 +139,11 @@ class ShowPythonCoverageCommand(sublime_plugin.TextCommand):
 
         cov_file = find(fname, '.coverage')
         if not cov_file:
-            print('Could not find .coverage file.')
-            return
+            return False
 
         config_file = os.path.join(os.path.dirname(cov_file), '.coveragerc')
 
-        if find(fname, '.coverage-noisy'):
-            flags = sublime.DRAW_EMPTY | sublime.DRAW_OUTLINED
-        else:
-            flags = sublime.HIDDEN
+        flags = sublime.DRAW_EMPTY | sublime.DRAW_STIPPLED_UNDERLINE
 
         # run analysis and find uncovered lines
         cov = coverage(data_file=cov_file, config_file=config_file)
@@ -114,4 +159,3 @@ class ShowPythonCoverageCommand(sublime_plugin.TextCommand):
         if outlines:
             view.add_regions('SublimePythonCoverage', outlines,
                              'coverage.missing', 'bookmark', flags)
-
